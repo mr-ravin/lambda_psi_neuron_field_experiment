@@ -130,7 +130,9 @@ The experiment defines ten architectures:
 | `aptx_field_relu` | APTx Neuron → Lambda-Psi → ReLU |
 | `aptx_relu_field` | APTx Neuron → ReLU → Lambda-Psi |
 
-By default, the selected ordering is applied to the three hidden blocks and the output head remains the corresponding base-neuron layer. `--field-on-output` enables an additional field on the output head for field variants.
+By default, the selected ordering is applied to the three hidden blocks and the output head remains the corresponding base-neuron layer.
+
+The `--field-on-output` flag changes the architecture for field-enabled variants by applying an additional Lambda-Psi field after the output neuron. Lambda-Psi is already applied to all three hidden layers in these variants; with this flag enabled, the field is therefore present in all three hidden layers and the output layer.
 
 ## Datasets
 
@@ -144,7 +146,7 @@ The default experiment includes:
 
 For classification datasets, the official training set is divided deterministically into training and validation subsets. The official test set is retained for final evaluation.
 
-For California Housing, only the input features are standardized. The target is left in the dataset's original scale, so MSE, RMSE, MAE, and R² are computed on the original target values. Convenience RMSE/MAE columns in US-dollar units are also recorded.
+For California Housing, only the input features are standardized. The target is left in the dataset's original target units, so MSE, RMSE, MAE, and R² are computed without target normalization. Convenience RMSE/MAE columns in US-dollar units are also recorded.
 
 ## Installation
 
@@ -171,11 +173,46 @@ Make the shell script executable if required:
 chmod +x run.sh
 ```
 
-Run the full default grid and allow missing datasets to be downloaded:
+### Command to replicate the complete experiment
+
+To replicate the complete experiment configuration used for this study, including dataset download and application of the Lambda-Psi field to the output layer of every field-enabled variant, run:
 
 ```bash
-./run.sh --download-dataset
+./run.sh --download-dataset --field-on-output
 ```
+
+This is the main command for reproducing the full experiment grid.
+
+`--download-dataset` allows any missing datasets to be downloaded.
+
+`--field-on-output` is an architectural option, not merely a logging option. For field-enabled variants, it applies an additional Lambda-Psi field after the output neuron.
+
+Without `--field-on-output`:
+
+```text
+Hidden Layer 1 -> Lambda-Psi
+Hidden Layer 2 -> Lambda-Psi
+Hidden Layer 3 -> Lambda-Psi
+Output Neuron
+```
+
+With `--field-on-output`:
+
+```text
+Hidden Layer 1 -> Lambda-Psi
+Hidden Layer 2 -> Lambda-Psi
+Hidden Layer 3 -> Lambda-Psi
+Output Neuron  -> Lambda-Psi
+```
+
+The learned output-field values are stored as:
+
+```text
+output_lambda
+output_psi
+```
+
+For variants that do not use a Lambda-Psi field, `--field-on-output` does not add a field to the output layer.
 
 The default grid contains:
 
@@ -237,7 +274,7 @@ Run a short smoke test:
   --download-dataset
 ```
 
-Apply the Lambda-Psi field to the output head as an explicit ablation:
+Apply the Lambda-Psi field to the output head:
 
 ```bash
 ./run.sh --field-on-output --download-dataset
@@ -301,6 +338,8 @@ This allows all model variants and learning rates to use the same validation spl
 
 Each run ID contains a configuration hash. The hash includes the experiment settings and a fingerprint of the scientific source files, which prevents resume mode from silently treating results produced by different source/configuration states as the same experiment.
 
+The `field_on_output` setting is part of the experiment configuration, so runs with and without `--field-on-output` are treated as different experimental conditions.
+
 ## Result files
 
 By default results are written to:
@@ -326,6 +365,24 @@ Contains one row for every individual run, including:
 - checkpoint path
 - learned Lambda/Psi values for every field layer
 - software versions and source/configuration fingerprints
+
+For field-enabled variants, the three hidden Lambda-Psi layers are recorded as:
+
+```text
+field1_lambda
+field1_psi
+field2_lambda
+field2_psi
+field3_lambda
+field3_psi
+```
+
+When `--field-on-output` is enabled, the output field is additionally recorded as:
+
+```text
+output_lambda
+output_psi
+```
 
 ### `summary_by_lr.csv`
 
