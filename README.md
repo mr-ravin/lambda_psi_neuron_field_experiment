@@ -1,4 +1,4 @@
-# Lambda-Psi Neuron Field Layer Experiment
+# Lambda-Psi Neuron Field Experiment
 
 This repository contains the experimental code for evaluating Lambda-Psi Neuron Fields with both traditional affine neurons and APTx Neurons across classification and regression benchmarks.
 
