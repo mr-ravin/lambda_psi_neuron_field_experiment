@@ -7,7 +7,7 @@ The code is intentionally organized into a small set of modules so that model de
 ## Project structure
 
 ```text
-lambda_psi_modular_codebase/
+lambda_psi_neuron_field_experiment/
 ├── lambda_psi_neuron_fields/
 │   └── __init__.py
 ├── models.py
