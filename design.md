@@ -1,26 +1,119 @@
-# Lambda-Psi Experiment Codebase Design
+# Lambda-Psi Neuron Field Experiment — Design
 
 ## 1. Purpose
 
-This codebase evaluates the Lambda-Psi Neuron Field formulation with two base neuron families—traditional affine neurons and APTx Neurons—while keeping ReLU placement explicit. The experimental design compares ten architectures over MNIST, Fashion-MNIST, CIFAR-10, CIFAR-100, and California Housing, using multiple initial learning rates and multiple random seeds.
+This codebase implements the experimental study for evaluating Lambda-Psi Neuron Fields with two base-neuron families:
 
-The modularization does **not** change the scientific experiment. It separates the previous monolithic `experiment.py` into modules with clear responsibilities:
+- traditional affine neurons
+- APTx Neurons
+
+The study compares ten explicit neuron / ReLU / Lambda-Psi compositions across five classification and regression benchmarks, multiple initial learning rates, and multiple random seeds.
+
+The code is organized so that the mathematical primitives, model architecture, reusable experiment utilities, and experiment execution can be inspected independently.
+
+The repository structure is:
 
 ```text
-project/
+lambda_psi_neuron_field_experiment/
 ├── lambda_psi_neuron_fields/
-│   └── __init__.py       # APTx primitives + Lambda-Psi mathematical layer
-├── models.py             # the ten model variants and network composition
-├── utils.py              # data, reproducibility, training, metrics, CSV summaries
-├── run.py                # CLI, one-run lifecycle, and experiment-grid orchestration
-├── run.sh                # optional single shell entry point
-├── design.md             # this document
-└── requirements.txt
+│   └── __init__.py
+├── models.py
+├── utils.py
+├── run.py
+├── run.sh
+├── design.md
+├── requirements.txt
+└── README.md
 ```
 
-## 2. Dependency direction
+The main command used to reproduce the complete experiment configuration is:
 
-The dependency direction is intentionally one-way:
+```bash
+./run.sh --download-dataset --field-on-output
+```
+
+This command runs the full default experiment grid and applies Lambda-Psi to the output layer of every field-enabled variant in addition to the three hidden field layers.
+
+---
+
+## 2. Design principles
+
+The code follows four main principles.
+
+### 2.1 Keep the Lambda-Psi mathematics in one reusable package
+
+The field equation is implemented in:
+
+```text
+lambda_psi_neuron_fields/__init__.py
+```
+
+The experiment code imports that implementation instead of duplicating the field mathematics.
+
+### 2.2 Keep the field neuron-agnostic
+
+The experiment follows the two-stage structure:
+
+```text
+x -> base neuron -> y -> Lambda-Psi field -> m
+```
+
+The pre-field value `y` may come from:
+
+```text
+nn.Linear
+```
+
+or:
+
+```text
+aptx_neuron_layer
+```
+
+The same generic `lambda_psi_field_layer` operates on either output.
+
+### 2.3 Keep ReLU external to the field
+
+ReLU is not embedded inside `lambda_psi_field_layer`.
+
+This keeps the following architectures genuinely distinct:
+
+```text
+Neuron -> Lambda-Psi -> ReLU
+```
+
+and:
+
+```text
+Neuron -> ReLU -> Lambda-Psi
+```
+
+### 2.4 Separate architecture from experiment infrastructure
+
+The code responsibilities are divided as follows:
+
+```text
+lambda_psi_neuron_fields/__init__.py
+    mathematical primitives
+
+models.py
+    model variants and network composition
+
+utils.py
+    data, metrics, training helpers, reproducibility, CSV summaries
+
+run.py
+    command-line interface and experiment orchestration
+
+run.sh
+    thin shell entry point
+```
+
+---
+
+## 3. Dependency direction
+
+The dependency graph is intentionally simple:
 
 ```text
 lambda_psi_neuron_fields/__init__.py
@@ -28,72 +121,128 @@ lambda_psi_neuron_fields/__init__.py
              ▼
          models.py
              │
-             ├──────────────┐
-             ▼              ▼
-          run.py  ◄────── utils.py
+             ▼
+          run.py
+             ▲
+             │
+          utils.py
 ```
 
 More precisely:
 
-- `lambda_psi_neuron_fields/__init__.py` is the reusable mathematical package. It does not depend on the experiment code.
-- `models.py` imports `aptx_neuron_layer` and `lambda_psi_field_layer` from that package.
-- `utils.py` contains generic experiment machinery and does not depend on `models.py`.
-- `run.py` imports the architecture from `models.py` and the experiment utilities from `utils.py`.
+- `lambda_psi_neuron_fields/__init__.py` does not depend on the experiment code.
+- `models.py` imports the reusable neuron and field primitives.
+- `utils.py` contains generic experiment infrastructure and does not define model architecture.
+- `run.py` imports both `models.py` and `utils.py`.
 
-This avoids circular imports and keeps the paper's field equation in one implementation.
+This avoids circular imports and keeps the mathematical implementation independent from experiment orchestration.
 
-## 3. `lambda_psi_neuron_fields/__init__.py`
+---
 
-The package defines the APTx activation/neuron primitives and the neuron-agnostic Lambda-Psi field.
+## 4. `lambda_psi_neuron_fields/__init__.py`
 
-### 3.1 APTx primitives
+This package contains the reusable neural primitives.
 
-The package contains:
+### 4.1 APTx primitives
 
-- `aptx_activation_function`
-- `aptx_neuron`
-- `aptx_neuron_layer`
+The package provides:
 
-The vectorized `aptx_neuron_layer` produces the pre-field neuron outputs used by the experiment.
+```text
+aptx_activation_function
+aptx_neuron
+aptx_neuron_layer
+```
 
-### 3.2 Generic Lambda-Psi field
+`aptx_neuron_layer` is the vectorized multi-neuron implementation used by the experiments.
 
-`lambda_psi_field_layer` accepts a 2-D tensor of pre-field neuron outputs `y` and applies the paper equation:
+### 4.2 Generic Lambda-Psi field
 
-\[
-m_j = \lambda\left[(1-\psi)\sigma(y_j) + \psi\,\mathrm{softmax}(\mathbf{y})_j\right]
-+ (1-\lambda)\left[(1-\psi)y_j + \psi\bar{y}\right].
-\]
+The generic field is implemented by:
 
-Its four fixed boundary regimes are:
+```text
+lambda_psi_field_layer
+```
 
-| Lambda | Psi | Behavior |
+For a vector of pre-field outputs `y`, it computes:
+
+```text
+m_j = lambda * [
+          (1 - psi) * sigmoid(y_j)
+          + psi * softmax(y)_j
+      ]
+      + (1 - lambda) * [
+          (1 - psi) * y_j
+          + psi * mean(y)
+      ]
+```
+
+The four boundary regimes are:
+
+| Lambda | Psi | Field behaviour |
 |---:|---:|---|
 | 0 | 0 | Identity |
-| 0 | 1 | Global Context / layer mean |
+| 0 | 1 | Global Context / mean |
 | 1 | 0 | Sigmoid |
 | 1 | 1 | Softmax |
 
-For a trainable field, raw scalar parameters are passed through sigmoid so learned Lambda and Psi remain in `[0, 1]`. ReLU is not embedded inside the field, which is important for distinguishing `field -> ReLU` from `ReLU -> field`.
+The formulation can be viewed as two branches:
 
-### 3.3 Renamed composite layer classes
+```text
+bounded / probabilistic branch
+    Sigmoid <-> Softmax
 
-The updated package names are:
+representation / contextual branch
+    Identity <-> Mean
+```
 
-- `traditional_neuron_lambda_psi_field_layer`
-- `aptx_neuron_lambda_psi_field_layer`
+`lambda` interpolates between the two branches.
 
-These names make the composition explicit. The experiment itself imports the generic `lambda_psi_field_layer` and composes it externally, because the ten ablations require control over ReLU placement. Therefore the renamed composite classes do not break the experiment runner.
+`psi` controls the local-to-global transition inside each branch.
 
-## 4. `models.py`
+### 4.3 Trainable Lambda and Psi
 
-`models.py` contains architecture definitions only.
+For trainable fields, the code stores unconstrained raw parameters:
 
-### 4.1 `VARIANT_SPECS`
+```text
+lambda_raw
+psi_raw
+```
 
-This dictionary is the single source of truth for all ten comparisons:
+The actual values used by the field are:
 
-| Variant key | Hidden-block execution |
+```text
+lambda = sigmoid(lambda_raw)
+psi    = sigmoid(psi_raw)
+```
+
+Therefore the effective field parameters remain in `(0, 1)` during training.
+
+Fixed fields can still represent the exact boundary values `0` and `1`.
+
+### 4.4 Composite package layers
+
+The package also exports:
+
+```text
+traditional_neuron_lambda_psi_field_layer
+aptx_neuron_lambda_psi_field_layer
+```
+
+These are reusable convenience layers that combine a base neuron with the field.
+
+The comparison experiment itself intentionally composes the generic field externally in `models.py`, because the ten architecture variants require explicit control over ReLU placement.
+
+---
+
+## 5. `models.py`
+
+`models.py` contains only architecture definitions and model composition.
+
+## 5.1 `VARIANT_SPECS`
+
+`VARIANT_SPECS` is the single source of truth for the ten comparison architectures.
+
+| Variant | Hidden-block operation |
 |---|---|
 | `traditional` | Traditional neuron |
 | `traditional_relu` | Traditional neuron -> ReLU |
@@ -106,38 +255,110 @@ This dictionary is the single source of truth for all ten comparisons:
 | `aptx_field_relu` | APTx Neuron -> Lambda-Psi -> ReLU |
 | `aptx_relu_field` | APTx Neuron -> ReLU -> Lambda-Psi |
 
-### 4.2 `build_base_neuron()`
+Each entry specifies:
 
-This factory creates one transformation layer:
+```text
+base neuron family
+whether Lambda-Psi is used
+where ReLU is placed
+```
 
-- `traditional` -> `nn.Linear`
-- `aptx` -> `aptx_neuron_layer`
+---
 
-This is where the base neuron family changes; the remaining network composition is shared.
+## 5.2 `build_base_neuron()`
 
-### 4.3 `HiddenBlock`
+This function creates the requested base-neuron layer.
 
-`HiddenBlock` performs one hidden-layer transformation. Its forward flow begins with:
+For a traditional neuron:
+
+```text
+nn.Linear(input_dim, output_dim)
+```
+
+For an APTx Neuron layer:
+
+```text
+aptx_neuron_layer(input_dim, output_dim)
+```
+
+The remaining network composition is shared across both neuron families.
+
+---
+
+## 5.3 Bias and delta behaviour
+
+By default:
+
+- Traditional layers use `bias=True`.
+- APTx layers use `delta`.
+- The same setting applies to all three hidden layers and to the output base-neuron layer.
+
+The CLI flag:
+
+```bash
+--no-delta
+```
+
+disables:
+
+```text
+Traditional neuron bias
+APTx neuron delta
+```
+
+for the complete network.
+
+The Lambda-Psi field itself does not introduce an additional bias term.
+
+---
+
+## 5.4 `HiddenBlock`
+
+Each hidden block starts with:
 
 ```text
 input -> base neuron -> y
 ```
 
-Then the `relu_position` and `use_field` settings determine what happens to `y`:
+The configured variant then determines what happens to `y`.
+
+### No field, no ReLU
 
 ```text
-after_neuron: y -> ReLU
-before_field: y -> ReLU -> Lambda-Psi
-after_field:  y -> Lambda-Psi -> ReLU
-none + field: y -> Lambda-Psi
-none:         y
+y
 ```
 
-No ordering is implicit. This is essential for a clean ablation study.
+### ReLU only
 
-### 4.4 `ComparisonNetwork`
+```text
+y -> ReLU
+```
 
-The network stacks three hidden blocks:
+### Lambda-Psi only
+
+```text
+y -> Lambda-Psi
+```
+
+### Lambda-Psi then ReLU
+
+```text
+y -> Lambda-Psi -> ReLU
+```
+
+### ReLU then Lambda-Psi
+
+```text
+y -> ReLU -> Lambda-Psi
+```
+
+This explicit execution path ensures that no activation ordering is hidden inside a neuron or field class.
+
+---
+
+## 5.5 `ComparisonNetwork`
+
+Every comparison network contains three hidden blocks:
 
 ```text
 input
@@ -145,71 +366,209 @@ input
   -> hidden block 2
   -> hidden block 3
   -> output base neuron
-  -> task output
 ```
 
-By default, the output head is the corresponding base neuron and has no field. This keeps the primary comparison focused on hidden representation layers and gives `CrossEntropyLoss` raw class scores and California Housing an unrestricted continuous scalar prediction.
+The hidden widths come from the selected dataset configuration unless overridden through the CLI.
 
-`--field-on-output` is retained as an explicit additional ablation. For a field variant only, it adds:
+### Default output behaviour
+
+Without:
+
+```bash
+--field-on-output
+```
+
+a field-enabled architecture has:
 
 ```text
-output base neuron -> Lambda-Psi field
+Hidden Layer 1 -> Lambda-Psi
+Hidden Layer 2 -> Lambda-Psi
+Hidden Layer 3 -> Lambda-Psi
+Output Neuron
 ```
 
-`field_values()` reads the learned Lambda/Psi values from every field-bearing hidden layer and, when enabled, the output field.
+The output remains the corresponding base-neuron layer.
 
-## 5. `utils.py`
+### Output-field behaviour
+
+With:
+
+```bash
+--field-on-output
+```
+
+the architecture becomes:
+
+```text
+Hidden Layer 1 -> Lambda-Psi
+Hidden Layer 2 -> Lambda-Psi
+Hidden Layer 3 -> Lambda-Psi
+Output Neuron  -> Lambda-Psi
+```
+
+The flag therefore changes the computational graph. It is not merely a logging option.
+
+For variants that do not use Lambda-Psi, the flag does not add a field.
+
+---
+
+## 5.6 Learned Lambda/Psi extraction
+
+`ComparisonNetwork.field_values()` extracts the learned field values from the best restored model.
+
+For field-enabled variants, the following are available:
+
+```text
+field1_lambda
+field1_psi
+field2_lambda
+field2_psi
+field3_lambda
+field3_psi
+```
+
+When `--field-on-output` is enabled, the model also exposes:
+
+```text
+output_lambda
+output_psi
+```
+
+These values correspond to the restored best-validation checkpoint.
+
+---
+
+## 6. `utils.py`
 
 `utils.py` contains reusable experiment infrastructure.
 
-### 5.1 Dataset configuration
+## 6.1 Dataset configuration
 
-`DATASET_CONFIGS` defines task type and default hyperparameters for each dataset:
+`DATASET_CONFIGS` defines the default settings for:
 
-- input/output dimensions
-- normalization values for image datasets
-- validation size
-- epochs
-- batch size
-- three hidden-layer widths
-- early-stopping patience
-- weight decay
-- label smoothing
+```text
+MNIST
+Fashion-MNIST
+CIFAR-10
+CIFAR-100
+California Housing
+```
 
-`RunSettings` represents one exact grid entry and carries both fixed defaults and optional CLI overrides.
+Each configuration specifies relevant values such as:
 
-### 5.2 Reproducibility
+```text
+task type
+input dimension
+output dimension
+normalization statistics
+validation size
+epoch limit
+batch size
+hidden dimensions
+early-stopping patience
+weight decay
+label smoothing
+```
 
-Two seeds intentionally serve different purposes:
+---
 
-- `split_seed`: fixes train/validation/test partitioning.
-- `seed`: controls model initialization, training RNG, and training DataLoader shuffle order.
+## 6.2 `RunSettings`
 
-This means every architecture, learning rate, and model seed is compared on the same underlying data split while still measuring stochastic training variation.
+`RunSettings` represents one exact experiment condition.
 
-`set_seed()` sets Python, NumPy, PyTorch, and CUDA RNGs and requests deterministic cuDNN behavior.
+A run includes:
 
-`seed_worker()` initializes DataLoader worker-side Python/NumPy randomness from PyTorch's deterministic worker seed.
+```text
+dataset
+variant
+training seed
+split seed
+initial learning rate
+data directory
+results directory
+field configuration
+APTx configuration
+training overrides
+```
 
-### 5.3 Run identity and resume safety
+This object is passed through the experiment lifecycle so one run remains self-contained and reproducible.
 
-Each run ID contains dataset, variant, seed, LR, and a configuration hash.
+---
 
-The configuration hash includes important non-seed/non-LR settings such as:
+## 6.3 Reproducibility
 
-- split seed
-- field-on-output flag
-- APTx alpha trainability
-- delta/bias setting
-- Lambda/Psi initial values
-- gradient clipping
-- early-stopping threshold
-- AMP state
-- workers/backend
-- resolved training hyperparameters
-- a source-code fingerprint
+The experiment separates two types of randomness.
 
-After modularization, `source_fingerprint()` hashes:
+### Split seed
+
+```text
+split_seed
+```
+
+controls dataset splitting.
+
+The default value is:
+
+```text
+2026
+```
+
+This means all model variants, learning rates, and training seeds use the same validation/test partition for a dataset.
+
+### Training seed
+
+```text
+seed
+```
+
+controls:
+
+```text
+model initialization
+PyTorch RNG
+CUDA RNG
+training-loader shuffle order
+worker-side randomness
+```
+
+The default experiment uses:
+
+```text
+0 1 2 3 4
+```
+
+---
+
+## 6.4 Source fingerprint and run identity
+
+Each run receives a unique ID built from:
+
+```text
+dataset
+variant
+seed
+initial learning rate
+configuration hash
+```
+
+The configuration hash includes important experiment settings such as:
+
+```text
+split seed
+field_on_output
+APTx alpha trainability
+bias / delta setting
+Lambda/Psi initialization
+gradient clipping
+min_delta
+AMP
+number of workers
+runtime backend
+resolved training hyperparameters
+source fingerprint
+```
+
+The source fingerprint hashes the scientific Python files:
 
 ```text
 utils.py
@@ -218,191 +577,482 @@ run.py
 lambda_psi_neuron_fields/__init__.py
 ```
 
-This is an intentional adaptation of the previous single-file fingerprint. Without it, resume mode could mistakenly treat results produced by old module code as current results.
+This prevents resume mode from silently treating results from different code states as the same experiment.
 
-### 5.4 Classification data flow
+---
 
-For MNIST, Fashion-MNIST, CIFAR-10, and CIFAR-100:
+## 6.5 Classification data flow
+
+For:
+
+```text
+MNIST
+Fashion-MNIST
+CIFAR-10
+CIFAR-100
+```
+
+the official training set is split deterministically into:
+
+```text
+training subset
+validation subset
+```
+
+The official test set remains separate.
+
+Execution flow:
 
 ```text
 official training set
-  -> deterministic index split
-     -> training subset with augmentation
-     -> validation subset with evaluation transform
+   -> deterministic split
+      -> training subset
+      -> validation subset
 
 official test set
-  -> evaluation transform only
+   -> final test evaluation
 ```
 
-MNIST/Fashion-MNIST training uses random crop. CIFAR additionally uses random horizontal flip. Validation and test sets use normalization only.
+Training subsets use data augmentation.
 
-The official test set is not used for early stopping or LR selection.
+Validation and test sets use evaluation transforms only.
 
-### 5.5 California Housing data flow
-
-California Housing follows:
+The official test set is not used for:
 
 ```text
-full data
-  -> deterministic train+validation / test split
-  -> deterministic train / validation split
+early stopping
+checkpoint selection
+learning-rate selection
 ```
 
-Only the features `X` are standardized using a scaler fit on the training subset. The target `y` is deliberately left in the dataset's original units.
+---
 
-Therefore reported MSE, RMSE, MAE, and R2 correspond to unnormalized target values. The CSV additionally multiplies RMSE and MAE by 100,000 for convenience because the dataset target is conventionally expressed in units of 100,000 USD.
+## 6.6 California Housing data flow
 
-### 5.6 Metrics
+California Housing is split deterministically into:
 
-Classification accumulates across the full loader:
+```text
+training
+validation
+test
+```
 
-- mean loss
-- top-1 accuracy
-- top-5 accuracy
+Only the input features `X` are standardized.
 
-Regression accumulates sufficient statistics across the full loader:
+The target `y` remains in the dataset's original target scale.
 
-- SSE
-- SAE
-- target sum
-- squared-target sum
+Therefore the reported regression metrics:
 
-The final metrics are then calculated once over the entire dataset:
+```text
+MSE
+RMSE
+MAE
+R2
+```
 
-- MSE
-- RMSE
-- MAE
-- R2
+are computed without target normalization.
 
-This avoids the statistical error of averaging independently calculated per-batch RMSE or R2 values.
+The code also stores convenience values:
 
-### 5.7 Training and evaluation
+```text
+RMSE × 100000
+MAE × 100000
+```
+
+for interpretation in US-dollar units.
+
+---
+
+## 6.7 Metric accumulation
+
+### Classification
+
+Metrics are accumulated over the complete loader:
+
+```text
+mean loss
+top-1 accuracy
+top-5 accuracy
+```
+
+### Regression
+
+The code accumulates:
+
+```text
+sum of squared errors
+sum of absolute errors
+target sum
+squared-target sum
+```
+
+and computes final:
+
+```text
+MSE
+RMSE
+MAE
+R2
+```
+
+once across the full dataset.
+
+This avoids averaging independently computed batch-level RMSE or R2 values.
+
+---
+
+## 6.8 Training flow
 
 `train_one_epoch()` performs:
 
 ```text
 batch
- -> device
+ -> move to device
  -> zero gradients
- -> forward
+ -> forward pass
  -> loss
  -> finite-loss check
- -> backward
+ -> backward pass
  -> optional gradient clipping
- -> optimizer step
+ -> optimizer update
  -> metric accumulation
 ```
 
-If AMP is active on CUDA, gradient scaling/autocast is used. A non-finite loss raises before the optimizer step.
+If AMP is enabled on CUDA, autocast and gradient scaling are used.
 
-`evaluate()` performs the same forward/metric path under `torch.no_grad()` without updating model parameters.
+A non-finite loss raises before an optimizer update.
 
-### 5.8 Optimizer design
+---
 
-The optimizer is AdamW, but Lambda/Psi raw field parameters are placed in a zero-weight-decay parameter group.
+## 6.9 Evaluation flow
 
-This matters because:
+`evaluate()` performs:
 
 ```text
-raw = 0 -> sigmoid(raw) = 0.5
+model.eval()
+ -> no gradients
+ -> forward pass
+ -> loss
+ -> metric accumulation
+ -> final metrics
 ```
 
-Applying weight decay to `lambda_raw` and `psi_raw` would pull the fields toward 0.5 and impose an unintended prior on the learned field regime. Base-neuron parameters retain the configured weight decay.
+No model parameters are changed during validation or test evaluation.
 
-### 5.9 CSV persistence and summaries
+---
 
-Every finished run is appended immediately to `all_runs.csv`, making long experiment grids recoverable after interruption.
+## 6.10 Optimizer design
 
-The utilities generate:
+The optimizer is AdamW.
+
+Most trainable model parameters receive the configured weight decay.
+
+The raw Lambda/Psi parameters:
+
+```text
+lambda_raw
+psi_raw
+```
+
+are placed in a zero-weight-decay parameter group.
+
+This is intentional because:
+
+```text
+raw = 0
+```
+
+maps to:
+
+```text
+sigmoid(0) = 0.5
+```
+
+Weight decay on the raw values would therefore impose an unintended pull toward:
+
+```text
+lambda = 0.5
+psi    = 0.5
+```
+
+The field is allowed to learn its regime without that extra bias.
+
+---
+
+## 6.11 CSV persistence
+
+Each run is appended immediately to:
 
 ```text
 all_runs.csv
+```
+
+after completion.
+
+This makes the long experiment grid recoverable if execution is interrupted.
+
+Successful runs are recognized by their run IDs when resume mode is active.
+
+---
+
+## 6.12 Cross-seed summaries
+
+The experiment writes:
+
+```text
 summary_by_lr.csv
+```
+
+Runs are grouped by:
+
+```text
+dataset
+variant
+configuration
+learning rate
+```
+
+The file reports mean and standard deviation across seeds.
+
+---
+
+## 6.13 Learning-rate selection
+
+The experiment writes:
+
+```text
 selected_lr_summary.csv
 ```
 
-`summary_by_lr.csv` groups by dataset + variant + configuration + LR and reports mean/std across seeds.
+only after all requested learning rates have complete requested seed sets.
 
-`selected_lr_summary.csv` is produced only after every requested LR has a complete requested seed set. LR selection uses validation data only:
+Learning-rate selection is based only on validation performance.
 
-- classification: maximize mean best-validation accuracy
-- regression: minimize mean best-validation RMSE
-
-Test metrics never participate in LR selection.
-
-## 6. `run.py`
-
-`run.py` is the orchestration layer.
-
-### 6.1 `run_single_experiment()`
-
-One call corresponds to one exact:
+For classification:
 
 ```text
-dataset + model variant + training seed + initial learning rate
+maximize mean best-validation accuracy
+```
+
+For regression:
+
+```text
+minimize mean best-validation RMSE
+```
+
+Test metrics do not participate in LR selection.
+
+---
+
+## 7. `run.py`
+
+`run.py` is the executable orchestration layer.
+
+## 7.1 One experiment run
+
+`run_single_experiment()` represents one exact:
+
+```text
+dataset
++ variant
++ training seed
++ initial learning rate
++ experiment configuration
 ```
 
 Its lifecycle is:
 
 ```text
-resolve settings
-  -> set training seed
-  -> choose CPU/CUDA
-  -> build DataLoaders
-  -> construct ComparisonNetwork
-  -> count parameters
-  -> build criterion / AdamW / CosineAnnealingLR / optional AMP
-  -> build run ID and checkpoint path
-  -> train epoch
-  -> validate epoch
-  -> select best checkpoint from validation metric
-  -> early stop when patience is exhausted
-  -> restore best checkpoint
-  -> re-evaluate validation with restored checkpoint
-  -> evaluate official test set
-  -> read learned Lambda/Psi values
-  -> return one CSV-ready dictionary
+resolve hyperparameters
+ -> set seed
+ -> select CPU/CUDA
+ -> build DataLoaders
+ -> build ComparisonNetwork
+ -> count parameters
+ -> build criterion
+ -> build AdamW optimizer
+ -> build cosine scheduler
+ -> optionally enable AMP
+ -> build run ID
+ -> create checkpoint path
+ -> train epoch
+ -> validate epoch
+ -> compare validation metric
+ -> save best checkpoint
+ -> early stop if patience is exhausted
+ -> restore best checkpoint
+ -> evaluate restored model on validation data
+ -> evaluate restored model on test data
+ -> extract learned Lambda/Psi values
+ -> return CSV-ready result
 ```
 
-Checkpoint selection is:
+---
 
-- classification: higher validation accuracy is better
-- regression: lower validation RMSE is better
+## 7.2 Checkpoint selection
 
-The test set is evaluated only after the selected checkpoint is restored.
-
-### 6.2 Grid construction
-
-Default values are:
+Classification checkpoints are selected by:
 
 ```text
-Datasets: 5
-Variants: 10
-Learning rates: 5
-Seeds: 5
+highest validation accuracy
 ```
 
-Thus the complete default grid contains:
+Regression checkpoints are selected by:
 
 ```text
-5 x 10 x 5 x 5 = 1250 runs
+lowest validation RMSE
 ```
 
-Duplicate seed/LR arguments are removed before the grid is constructed.
+The test set is evaluated only after the best-validation checkpoint has been restored.
 
-### 6.3 Resume behavior
+---
 
-Unless `--no-resume` is supplied, successful run IDs already present in `all_runs.csv` are skipped.
+## 7.3 Early stopping
 
-Failed runs are recorded with `status=error`, so failures remain inspectable but can be retried later because only successful run IDs count as complete.
+The configured epoch count is a maximum.
 
-### 6.4 Failure handling
+For example:
 
-A failed run records an error row and the grid continues. `--fail-fast` changes this behavior and raises immediately after the first failed run.
+```text
+epochs = 50
+patience = 5
+```
 
-## 7. Primary output files
+means training may stop before epoch 50 if the validation selection metric does not improve for five consecutive epochs.
 
-For the default results directory:
+The final result still comes from the restored best-validation checkpoint.
+
+---
+
+## 7.4 Default experiment grid
+
+The default configuration uses:
+
+```text
+5 datasets
+10 variants
+5 initial learning rates
+5 training seeds
+```
+
+Therefore:
+
+```text
+5 × 10 × 5 × 5 = 1250 runs
+```
+
+The default learning rates are:
+
+```text
+0.0003
+0.0005
+0.001
+0.002
+0.003
+```
+
+The default seeds are:
+
+```text
+0
+1
+2
+3
+4
+```
+
+---
+
+## 7.5 Resume behaviour
+
+Resume mode is enabled by default.
+
+Before a run starts, the code checks whether the same successful `run_id` already exists in:
+
+```text
+all_runs.csv
+```
+
+If it does, the run is skipped.
+
+Because `field_on_output` is part of the experiment configuration hash, runs executed with:
+
+```bash
+--field-on-output
+```
+
+are treated as different experiment conditions from runs without that flag.
+
+---
+
+## 7.6 Failure handling
+
+If a run fails:
+
+- an error row is written to `all_runs.csv`;
+- the failure remains inspectable;
+- the grid normally continues.
+
+With:
+
+```bash
+--fail-fast
+```
+
+the experiment stops after the first failure.
+
+---
+
+## 8. `run.sh`
+
+`run.sh` is intentionally minimal.
+
+Its role is to forward command-line arguments to `run.py`:
+
+```bash
+./run.sh [arguments]
+```
+
+This keeps all experiment logic in Python.
+
+---
+
+## 9. Command to replicate the complete experiment
+
+The main replication command is:
+
+```bash
+./run.sh --download-dataset --field-on-output
+```
+
+This command:
+
+1. allows missing datasets to be downloaded;
+2. runs the full default grid of 1250 experiment entries;
+3. evaluates all ten architecture variants;
+4. uses five initial learning rates;
+5. uses five training seeds;
+6. applies Lambda-Psi to all three hidden layers of field-enabled variants;
+7. applies an additional Lambda-Psi field to the output layer of field-enabled variants;
+8. records hidden-layer Lambda/Psi values;
+9. records output-layer Lambda/Psi values;
+10. performs validation-based checkpoint selection;
+11. performs validation-based learning-rate selection;
+12. stores per-run, per-LR, and selected-LR result files.
+
+For the complete study configuration, this command is the reference execution path.
+
+---
+
+## 10. Result structure
+
+By default, results are stored in:
+
+```text
+./results/lambda_psi_comparison/
+```
+
+The main structure is:
 
 ```text
 results/lambda_psi_comparison/
@@ -410,69 +1060,233 @@ results/lambda_psi_comparison/
 ├── summary_by_lr.csv
 ├── selected_lr_summary.csv
 └── checkpoints/
-    └── <dataset>/<variant>/<run-id>.pt
+    └── <dataset>/
+        └── <variant>/
+            └── <run-id>.pt
 ```
 
-`all_runs.csv` contains reproducibility metadata, configuration, parameter counts, runtime, best validation metrics, final test metrics, and learned Lambda/Psi values.
+---
 
-## 8. Execution examples
+## 11. `all_runs.csv`
 
-The simplest direct Python command is:
+This file contains one row for every individual run.
 
-```bash
-python3 run.py --download-dataset
-```
-
-The single shell wrapper is equivalent to calling `run.py` and forwards every argument:
-
-```bash
-./run.sh --download-dataset
-```
-
-A one-run smoke test:
-
-```bash
-./run.sh \
-  --download-dataset \
-  --datasets mnist \
-  --variants traditional_field \
-  --seeds 0 \
-  --lrs 1e-3 \
-  --epochs 2 \
-  --patience 2 \
-  --max-runs 1
-```
-
-MNIST across all ten variants for one seed/LR:
-
-```bash
-./run.sh \
-  --download-dataset \
-  --datasets mnist \
-  --seeds 0 \
-  --lrs 1e-3
-```
-
-Full default grid:
-
-```bash
-./run.sh --download-dataset
-```
-
-## 9. Scientific separation of responsibilities
-
-The important architectural principle is that the code mirrors the paper's two-stage idea:
+It records:
 
 ```text
-x -> base neuron -> y -> optional Lambda-Psi -> m
+dataset
+task type
+variant
+base neuron
+field usage
+ReLU position
+field_on_output
+seed
+split seed
+initial learning rate
+hyperparameters
+parameter counts
+best epoch
+epochs run
+validation metrics
+test metrics
+training duration
+checkpoint path
+software versions
+source fingerprint
+configuration hash
+learned Lambda/Psi values
 ```
 
-ReLU is an explicit experiment operator around this sequence rather than hidden inside the field implementation. Consequently, `Neuron -> Field -> ReLU` and `Neuron -> ReLU -> Field` are truly different computational graphs.
+For field-enabled variants, the hidden fields are stored as:
 
-The field remains neuron-agnostic: the same `lambda_psi_field_layer` receives `y` whether `y` is generated by `nn.Linear` or by `aptx_neuron_layer`.
+```text
+field1_lambda
+field1_psi
+field2_lambda
+field2_psi
+field3_lambda
+field3_psi
+```
 
-## 10. Notes on the updated package names
+When the complete experiment command is used with:
 
-The updated `__init__.py` is internally consistent and the renamed composite layer classes are exported in `__all__`. The modular experiment does not depend on the old composite names, so no compatibility problem is introduced by the rename.
+```bash
+--field-on-output
+```
 
-The experimental code intentionally uses `aptx_neuron_layer` + `lambda_psi_field_layer` as separate components because this is required to express all ten ReLU/field orderings without embedding extra activation behavior inside package classes.
+the output field is additionally stored as:
+
+```text
+output_lambda
+output_psi
+```
+
+---
+
+## 12. `summary_by_lr.csv`
+
+This file aggregates runs across seeds for each:
+
+```text
+dataset
+variant
+configuration
+learning rate
+```
+
+It reports:
+
+```text
+mean
+standard deviation
+number of runs
+number of unique seeds
+whether the complete seed set is available
+```
+
+for validation metrics, test metrics, learned field values, and runtime.
+
+---
+
+## 13. `selected_lr_summary.csv`
+
+This file contains the selected learning rate for each complete experiment condition.
+
+The selected LR is chosen from validation performance only.
+
+For classification:
+
+```text
+maximum mean validation accuracy
+```
+
+For regression:
+
+```text
+minimum mean validation RMSE
+```
+
+The file is not populated for an incomplete LR sweep.
+
+---
+
+## 14. Checkpoints
+
+The best checkpoint for every run is stored under:
+
+```text
+checkpoints/<dataset>/<variant>/
+```
+
+The checkpoint corresponds to the best validation metric observed during that run.
+
+After training completes or early stopping triggers, that checkpoint is restored before final validation and test metrics are recorded.
+
+---
+
+## 15. Scientific execution flow
+
+The complete field-enabled architecture used by the replication command can be summarized as:
+
+```text
+input
+  -> base neuron 1
+  -> optional ReLU / Lambda-Psi ordering
+  -> base neuron 2
+  -> optional ReLU / Lambda-Psi ordering
+  -> base neuron 3
+  -> optional ReLU / Lambda-Psi ordering
+  -> output base neuron
+  -> Lambda-Psi output field
+  -> task output
+```
+
+The actual hidden-layer ordering depends on the selected variant.
+
+For non-field variants, no Lambda-Psi field is inserted.
+
+For field variants, the same neuron-agnostic field implementation is reused at every field-bearing layer.
+
+---
+
+## 16. Why the output field is explicit
+
+The output field is controlled by:
+
+```bash
+--field-on-output
+```
+
+instead of being permanently embedded in every field variant.
+
+This makes the architecture explicit and keeps runs with and without an output field distinguishable.
+
+The complete experiment configuration for this repository uses:
+
+```bash
+./run.sh --download-dataset --field-on-output
+```
+
+so the field-enabled variants in that experiment contain Lambda-Psi at:
+
+```text
+hidden layer 1
+hidden layer 2
+hidden layer 3
+output layer
+```
+
+---
+
+## 17. Recommended code-reading order
+
+A useful reading order is:
+
+```text
+lambda_psi_neuron_fields/__init__.py
+        ↓
+models.py
+        ↓
+utils.py
+        ↓
+run.py
+        ↓
+design.md
+```
+
+This follows the conceptual execution order:
+
+```text
+mathematical primitives
+    -> model composition
+    -> experiment infrastructure
+    -> experiment orchestration
+    -> complete design documentation
+```
+
+---
+
+## 18. Summary
+
+The codebase is designed so that the experiment remains both explicit and reproducible.
+
+The central structure is:
+
+```text
+base neuron
+    -> optional ReLU
+    -> optional Lambda-Psi
+```
+
+with the ordering determined by the selected variant.
+
+The field mathematics is implemented once, remains neuron-agnostic, and is shared by traditional and APTx models.
+
+The experiment uses deterministic data splitting, multiple training seeds, multiple initial learning rates, validation-based checkpoint selection, validation-only learning-rate selection, source/configuration fingerprints, resumable execution, and CSV aggregation.
+
+The command that reproduces the complete experiment configuration is:
+
+```bash
+./run.sh --download-dataset --field-on-output
+```
