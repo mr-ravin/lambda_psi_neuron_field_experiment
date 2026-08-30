@@ -177,13 +177,13 @@ chmod +x run.sh
 
 To replicate the complete experiment configuration used for this study, including dataset download and application of the Lambda-Psi field to the output layer of every field-enabled variant, run:
 
--  **Case 1**: Lambda-psi is applied on: Hidden Layer and Output Layer. The results are saved in `./results/lambda_psi_comparison/`.
+-  **Case 1**: Lambda-psi is applied on: Hidden Layers and Output Layer. The results are saved in `./results/lambda_psi_comparison/`.
 
 ```bash
 ./run.sh --download-dataset --field-on-output
 ```
 
-- **Case 2**: Lambda-psi is applied on: Hidden Layer Only. The results are saved in `./results/lambda_psi_hidden_only/`.
+- **Case 2**: Lambda-psi is applied on: Hidden Layers Only. The results are saved in `./results/lambda_psi_hidden_only/`.
 
 ```bash
 ./run.sh \
