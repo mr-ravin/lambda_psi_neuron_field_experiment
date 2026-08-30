@@ -177,9 +177,28 @@ chmod +x run.sh
 
 To replicate the complete experiment configuration used for this study, including dataset download and application of the Lambda-Psi field to the output layer of every field-enabled variant, run:
 
+-  **Case 1**: Lambda-psi is applied on: Hidden Layer and Output Layer. The results are saved in `./results/lambda_psi_comparison/`.
+
 ```bash
 ./run.sh --download-dataset --field-on-output
 ```
+
+- **Case 2**: Lambda-psi is applied on: Hidden Layer Only. The results are saved in `./results/lambda_psi_hidden_only/`.
+
+```bash
+./run.sh \
+  --datasets mnist fashion_mnist cifar10 cifar100 california_housing \
+  --variants \
+    traditional_field \
+    traditional_field_relu \
+    traditional_relu_field \
+    aptx_field \
+    aptx_field_relu \
+    aptx_relu_field \
+  --results-dir ./results/lambda_psi_hidden_only \
+  --download-dataset
+```
+
 
 This is the main command for reproducing the full experiment grid.
 
