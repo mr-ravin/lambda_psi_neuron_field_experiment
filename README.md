@@ -231,7 +231,7 @@ output_lambda
 output_psi
 ```
 
-For variants that do not use a Lambda-Psi field, `--field-on-output` does not add a field to the output layer.
+For variants that do not use a Lambda-Psi field (i.e. does not use `--field-on-output`) does not add a field to the output layer.
 
 The default grid contains:
 
