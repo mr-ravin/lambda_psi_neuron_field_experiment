@@ -146,7 +146,7 @@ This avoids circular imports and keeps the mathematical implementation independe
 
 This package contains the reusable neural primitives.
 
-### 4.1 APTx primitives
+### 4.1 APTx Activation Function and APTx Neuron primitives
 
 The package provides:
 
@@ -293,7 +293,7 @@ The remaining network composition is shared across both neuron families.
 By default:
 
 - Traditional layers use `bias=True`.
-- APTx layers use `delta`.
+- APTx Neuron layers use `delta`.
 - The same setting applies to all three hidden layers and to the output base-neuron layer.
 
 The CLI flag:
@@ -306,7 +306,7 @@ disables:
 
 ```text
 Traditional neuron bias
-APTx neuron delta
+APTx Neuron delta
 ```
 
 for the complete network.
@@ -490,7 +490,7 @@ initial learning rate
 data directory
 results directory
 field configuration
-APTx configuration
+APTx Neuron configuration
 training overrides
 ```
 
@@ -559,7 +559,7 @@ The configuration hash includes important experiment settings such as:
 ```text
 split seed
 field_on_output
-APTx alpha trainability
+APTx Neuron alpha trainability
 bias / delta setting
 Lambda/Psi initialization
 gradient clipping
@@ -1140,7 +1140,7 @@ field3_lambda
 field3_psi
 ```
 
-When the complete experiment command is used with:
+When the primary experiment command is used with:
 
 ```bash
 --field-on-output
@@ -1218,7 +1218,7 @@ After training completes or early stopping triggers, that checkpoint is restored
 
 ## 15. Scientific execution flow
 
-The complete field-enabled architecture used by the replication command can be summarized as:
+The primary field-enabled architecture used by the replication command can be summarized as:
 
 ```text
 input
@@ -1306,13 +1306,12 @@ The central structure is:
 
 ```text
 base neuron
-    -> optional ReLU
-    -> optional Lambda-Psi
+    -> ReLU and/or Lambda-Psi in variant-defined order
 ```
 
 with the ordering determined by the selected variant.
 
-The field mathematics is implemented once, remains neuron-agnostic, and is shared by traditional and APTx models.
+The field mathematics is implemented once, remains neuron-agnostic, and is shared by traditional and APTx Neuron models.
 
 The experiment uses deterministic data splitting, multiple training seeds, multiple initial learning rates, validation-based checkpoint selection, validation-only learning-rate selection, source/configuration fingerprints, resumable execution, and CSV aggregation.
 
