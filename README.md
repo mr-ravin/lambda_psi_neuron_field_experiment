@@ -16,7 +16,8 @@ lambda_psi_neuron_field_experiment/
 ├── run.sh
 ├── design.md
 ├── requirements.txt
-└── README.md
+├── README.md
+└── generate_paper_tables.py # Run after results/ are generated to produce the table data reported in the paper
 ```
 
 ### `lambda_psi_neuron_fields/__init__.py`
