@@ -26,7 +26,7 @@ lambda_psi_neuron_field_experiment/
 
 Contains the reusable neural primitives:
 
-- APTx activation function
+- APTx Activation Function
 - APTx Neuron
 - Vectorized APTx Neuron layer
 - Generic Lambda-Psi field layer
@@ -40,7 +40,7 @@ The generic Lambda-Psi field operates on the pre-field neuron outputs `y` and do
 Contains the model definitions used in the comparison study:
 
 - architecture specifications for all comparison variants
-- construction of traditional and APTx base-neuron layers
+- construction of traditional and APTx Neuron base-neuron layers
 - `HiddenBlock`
 - `ComparisonNetwork`
 - extraction of learned Lambda/Psi values
@@ -303,13 +303,13 @@ Apply the Lambda-Psi field to the output head:
 ./run.sh --field-on-output --download-dataset
 ```
 
-Use fixed APTx alpha values:
+Use fixed APTx Neuron alpha values:
 
 ```bash
 ./run.sh --no-alpha-trainable --download-dataset
 ```
 
-Disable APTx delta / traditional-neuron bias:
+Disable APTx Neuron delta / traditional-neuron bias:
 
 ```bash
 ./run.sh --no-delta --download-dataset
