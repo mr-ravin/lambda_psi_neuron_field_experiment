@@ -175,15 +175,16 @@ chmod +x run.sh
 
 ### Command to replicate the complete experiment
 
-To replicate the complete experiment configuration used for this study, including dataset download and application of the Lambda-Psi field to the output layer of every field-enabled variant, run:
+To reproduce the primary experiment and architectural ablation used in this study:
 
--  **Case 1**: Lambda-psi is applied on: Hidden Layers and Output Layer. The results are saved in `./results/lambda_psi_comparison/`.
+-  **Case 1**: Lambda-Psi is applied on: Hidden Layers and Output Layer. The results are saved in `./results/lambda_psi_comparison/`. This experiment contains: 5 datasets × 10 variants × 5 learning rates × 5 seeds = 1250 runs
 
 ```bash
 ./run.sh --download-dataset --field-on-output
 ```
 
-- **Case 2**: Lambda-psi is applied on: Hidden Layers Only. The results are saved in `./results/lambda_psi_hidden_only/`.
+- **Case 2**: Lambda-Psi is applied on: Hidden Layers Only. The results are saved in `./results/lambda_psi_hidden_only/`. This ablation contains:
+5 datasets × 6 field variants × 5 learning rates × 5 seeds = 750 runs
 
 ```bash
 ./run.sh \
@@ -200,7 +201,7 @@ To replicate the complete experiment configuration used for this study, includin
 ```
 
 
-This is the main command for reproducing the full experiment grid.
+**Case 1** is the **primary experiment** used for the complete comparison grid, while Case 2 is the hidden-only architectural ablation.
 
 `--download-dataset` allows any missing datasets to be downloaded.
 
@@ -231,9 +232,9 @@ output_lambda
 output_psi
 ```
 
-For variants that do not use a Lambda-Psi field (i.e. does not use `--field-on-output`) does not add a field to the output layer.
+For non-field variants (traditional, traditional_relu, aptx, and aptx_relu), the `--field-on-output` option has no effect because these architectures do not contain Lambda–Psi fields.
 
-The default grid contains:
+The default grid contains (Case 1: Lambda-Psi is applied on: Hidden Layers and Output Layer):
 
 ```text
 5 datasets × 10 variants × 5 learning rates × 5 seeds = 1250 runs
