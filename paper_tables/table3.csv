@@ -1,0 +1,11 @@
+Variant,Hidden-block operation
+Traditional,Traditional neuron
+Traditional + ReLU,Traditional neuron -> ReLU
+Traditional + Field,Traditional neuron -> Field
+Traditional + Field + ReLU,Traditional neuron -> Field -> ReLU
+Traditional + ReLU + Field,Traditional neuron -> ReLU -> Field
+APTx Neuron,APTx Neuron
+APTx Neuron + ReLU,APTx Neuron -> ReLU
+APTx Neuron + Field,APTx Neuron -> Field
+APTx Neuron + Field + ReLU,APTx Neuron -> Field -> ReLU
+APTx Neuron + ReLU + Field,APTx Neuron -> ReLU -> Field

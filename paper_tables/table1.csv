@@ -1,0 +1,5 @@
+lambda,psi,resulting_equation,regime
+0,0,m_j = y_j,Identity
+0,1,m_j = mean(y),Global Context
+1,0,m_j = sigmoid(y_j),Sigmoid
+1,1,m_j = softmax(y)_j,Softmax
