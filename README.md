@@ -8,7 +8,7 @@ The code is intentionally organized into a small set of modules so that model de
 
 ```text
 lambda_psi_neuron_field_experiment/
-├── lambda_psi_neuron_fields/
+├── lambda_psi_neuron_field/
 │   └── __init__.py
 ├── models.py
 ├── utils.py
@@ -22,7 +22,7 @@ lambda_psi_neuron_field_experiment/
 └── README.md
 ```
 
-### `lambda_psi_neuron_fields/__init__.py`
+### `lambda_psi_neuron_field/__init__.py`
 
 Contains the reusable neural primitives:
 
@@ -431,7 +431,7 @@ Stores the best validation checkpoint for each run.
 A convenient reading order is:
 
 ```text
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
         ↓
 models.py
         ↓
