@@ -373,7 +373,7 @@ input
 
 The hidden widths come from the selected dataset configuration unless overridden through the CLI.
 
-### Default output behaviour
+### CLI default output behaviour
 
 Without:
 
