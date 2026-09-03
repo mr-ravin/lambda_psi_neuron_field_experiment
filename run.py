@@ -387,8 +387,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--field-on-output",
         action="store_true",
         help=(
-            "Also apply Lambda-Psi to the task output head for field variants. "
-            "Default: field is applied only to hidden representation layers."
+                "Also apply Lambda-Psi to the task output head for field variants. "
+                "CLI default: fields are applied only to hidden representation layers. "
+                "The paper's primary experiment enables this option."
         ),
     )
     parser.add_argument(
