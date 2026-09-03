@@ -6,7 +6,7 @@ This module contains only architecture-related code:
 - explicit ReLU/Lambda-Psi ordering inside hidden blocks, and
 - the complete three-hidden-layer comparison network.
 
-The Lambda-Psi equation itself remains in ``lambda_psi_neuron_fields`` so the
+The Lambda-Psi equation itself remains in ``lambda_psi_neuron_field`` so the
 benchmark and the reusable package execute the same mathematical definition.
 """
 
@@ -17,7 +17,7 @@ from typing import Dict, Tuple
 import torch
 import torch.nn as nn
 
-from lambda_psi_neuron_fields import aptx_neuron_layer, lambda_psi_field_layer
+from lambda_psi_neuron_field import aptx_neuron_layer, lambda_psi_field_layer
 
 # -----------------------------------------------------------------------------
 # Experiment variants
