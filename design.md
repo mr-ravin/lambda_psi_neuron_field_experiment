@@ -15,7 +15,7 @@ The repository structure is:
 
 ```text
 lambda_psi_neuron_field_experiment/
-├── lambda_psi_neuron_fields/
+├── lambda_psi_neuron_field/
 │   └── __init__.py
 ├── models.py
 ├── utils.py
@@ -48,7 +48,7 @@ The code follows four main principles.
 The field equation is implemented in:
 
 ```text
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
 ```
 
 The experiment code imports that implementation instead of duplicating the field mathematics.
@@ -96,7 +96,7 @@ Neuron -> ReLU -> Lambda-Psi
 The code responsibilities are divided as follows:
 
 ```text
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
     mathematical primitives
 
 models.py
@@ -119,7 +119,7 @@ run.sh
 The dependency graph is intentionally simple:
 
 ```text
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
              │
              ▼
          models.py
@@ -133,7 +133,7 @@ lambda_psi_neuron_fields/__init__.py
 
 More precisely:
 
-- `lambda_psi_neuron_fields/__init__.py` does not depend on the experiment code.
+- `lambda_psi_neuron_field/__init__.py` does not depend on the experiment code.
 - `models.py` imports the reusable neuron and field primitives.
 - `utils.py` contains generic experiment infrastructure and does not define model architecture.
 - `run.py` imports both `models.py` and `utils.py`.
@@ -142,7 +142,7 @@ This avoids circular imports and keeps the mathematical implementation independe
 
 ---
 
-## 4. `lambda_psi_neuron_fields/__init__.py`
+## 4. `lambda_psi_neuron_field/__init__.py`
 
 This package contains the reusable neural primitives.
 
@@ -577,7 +577,7 @@ The source fingerprint hashes the scientific Python files:
 utils.py
 models.py
 run.py
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
 ```
 
 This prevents resume mode from silently treating results from different code states as the same experiment.
@@ -1275,7 +1275,7 @@ output layer
 A useful reading order is:
 
 ```text
-lambda_psi_neuron_fields/__init__.py
+lambda_psi_neuron_field/__init__.py
         ↓
 models.py
         ↓
