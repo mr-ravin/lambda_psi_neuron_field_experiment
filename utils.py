@@ -208,7 +208,7 @@ def source_fingerprint() -> str:
 
     In the original single-file runner this fingerprint covered experiment.py and
     the field package. After modularization the same protection must cover
-    utils.py, models.py, run.py, and lambda_psi_neuron_fields/__init__.py.
+    utils.py, models.py, run.py, and lambda_psi_neuron_field/__init__.py.
     This prevents resume mode from silently mixing results from different code.
     """
     hasher = hashlib.sha256()
@@ -217,7 +217,7 @@ def source_fingerprint() -> str:
         os.path.join(base_dir, "utils.py"),
         os.path.join(base_dir, "models.py"),
         os.path.join(base_dir, "run.py"),
-        os.path.join(base_dir, "lambda_psi_neuron_fields", "__init__.py"),
+        os.path.join(base_dir, "lambda_psi_neuron_field", "__init__.py"),
     ]
     for path in paths:
         with open(path, "rb") as f:
