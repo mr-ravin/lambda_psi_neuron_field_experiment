@@ -133,7 +133,7 @@ The experiment defines ten architectures:
 | `aptx_field_relu` | APTx Neuron → Lambda-Psi → ReLU |
 | `aptx_relu_field` | APTx Neuron → ReLU → Lambda-Psi |
 
-By default, the selected ordering is applied to the three hidden blocks and the output head remains the corresponding base-neuron layer.
+At the CLI default, without `--field-on-output`, the selected ordering is applied to the three hidden blocks and the output head remains the corresponding base-neuron layer. The paper's primary experiment enables `--field-on-output`.
 
 The `--field-on-output` flag changes the architecture for field-enabled variants by applying an additional Lambda-Psi field after the output neuron. Lambda-Psi is already applied to all three hidden layers in these variants; with this flag enabled, the field is therefore present in all three hidden layers and the output layer.
 
@@ -237,7 +237,7 @@ output_psi
 
 For non-field variants (traditional, traditional_relu, aptx, and aptx_relu), the `--field-on-output` option has no effect because these architectures do not contain Lambda–Psi fields.
 
-The default grid contains (Case 1: Lambda-Psi is applied on: Hidden Layers and Output Layer):
+The primary experiment (Case 1: hidden + output fields) contains:
 
 ```text
 5 datasets × 10 variants × 5 learning rates × 5 seeds = 1250 runs
