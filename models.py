@@ -170,13 +170,15 @@ class HiddenBlock(nn.Module):
         return y
 
 class ComparisonNetwork(nn.Module):
-    """Three hidden blocks plus a base-neuron output head by default.
+    """Three hidden blocks followed by a base-neuron output head.
 
-    The paper defines Lambda-Psi as a layer-level operator, not as a requirement that
-    every network layer must be a field layer.  The primary comparison therefore
-    applies the requested ordering to hidden representation layers and leaves the
-    task head as the corresponding base neuron.  ``field_on_output=True`` is retained
-    as an explicit ablation for experiments that also make the output head a field.
+    For field-enabled variants, the Lambda-Psi field is applied to all three
+    hidden representation layers. When ``field_on_output=True``, an additional
+    Lambda-Psi field is applied after the output base neuron.
+
+    The primary experiment in the paper uses ``field_on_output=True``, giving
+    three hidden fields plus an output field. The hidden-only ablation uses
+    ``field_on_output=False``, retaining only the three hidden fields.
     """
 
     def __init__(
