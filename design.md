@@ -417,7 +417,7 @@ For variants that do not use Lambda-Psi, the flag does not add a field.
 
 ## 5.6 Learned Lambda/Psi extraction
 
-`ComparisonNetwork.field_values()` extracts the learned field values from the best restored model.
+`ComparisonNetwork.field_values()` extracts the learned field values from the restored validation-selected model.
 
 For field-enabled variants, the following are available:
 
@@ -437,7 +437,7 @@ output_lambda
 output_psi
 ```
 
-These values correspond to the restored best-validation checkpoint.
+These values correspond to the restored validation-selected checkpoint.
 
 ---
 
@@ -834,14 +834,16 @@ Learning-rate selection is based only on validation performance.
 For classification:
 
 ```text
-maximize mean best-validation accuracy
+maximize mean validation accuracy of the selected checkpoints
 ```
 
 For regression:
 
 ```text
-minimize mean best-validation RMSE
+minimize mean validation RMSE of the selected checkpoints
 ```
+
+For the study's learning-rate grid, exact ties in the mean validation metric are resolved in favor of the smaller learning rate.
 
 Test metrics do not participate in LR selection.
 
@@ -881,9 +883,9 @@ resolve hyperparameters
  -> train epoch
  -> validate epoch
  -> compare validation metric
- -> save best checkpoint
+ -> save checkpoint after a qualifying improvement
  -> early stop if patience is exhausted
- -> restore best checkpoint
+ -> restore validation-selected checkpoint
  -> evaluate restored model on validation data
  -> evaluate restored model on test data
  -> extract learned Lambda/Psi values
@@ -894,19 +896,25 @@ resolve hyperparameters
 
 ## 7.2 Checkpoint selection
 
-Classification checkpoints are selected by:
+The first epoch establishes the initial checkpoint. For later epochs, checkpoint replacement requires a validation improvement greater than `min_delta` (CLI: `--min-delta`, default: `1e-4`) relative to the saved checkpoint.
+
+A classification checkpoint is replaced when:
 
 ```text
-highest validation accuracy
+current_accuracy > saved_accuracy + min_delta
 ```
 
-Regression checkpoints are selected by:
+Validation accuracy is expressed as a fraction, so the default threshold is `0.0001` in accuracy units, equivalent to `0.01` percentage points.
+
+A regression checkpoint is replaced when:
 
 ```text
-lowest validation RMSE
+current_rmse < saved_rmse - min_delta
 ```
 
-The test set is evaluated only after the best-validation checkpoint has been restored.
+The regression threshold applies to validation RMSE in the dataset's original target units.
+
+Each qualifying improvement also resets the early-stopping patience counter. The test set is evaluated only after the validation-selected checkpoint has been restored.
 
 ---
 
@@ -919,11 +927,12 @@ For example:
 ```text
 epochs = 50
 patience = 5
+min_delta = 1e-4
 ```
 
-means training may stop before epoch 50 if the validation selection metric does not improve for five consecutive epochs.
+means training may stop before epoch 50 after five consecutive epochs without a validation improvement exceeding `min_delta` relative to the saved checkpoint.
 
-The final result still comes from the restored best-validation checkpoint.
+The final result comes from the restored validation-selected checkpoint.
 
 ---
 
@@ -1198,19 +1207,21 @@ For regression:
 minimum mean validation RMSE
 ```
 
+These metrics are measured using the restored validation-selected checkpoints. For the study's learning-rate grid, exact ties in the mean validation metric are resolved in favor of the smaller learning rate.
+
 The file is not populated for an incomplete LR sweep.
 
 ---
 
 ## 14. Checkpoints
 
-The best checkpoint for every run is stored under:
+The validation-selected checkpoint for every run is stored under:
 
 ```text
 checkpoints/<dataset>/<variant>/
 ```
 
-The checkpoint corresponds to the best validation metric observed during that run.
+The checkpoint is selected using validation accuracy or RMSE, subject to the configured `min_delta` improvement rule described in Section 7.2.
 
 After training completes or early stopping triggers, that checkpoint is restored before final validation and test metrics are recorded.
 
