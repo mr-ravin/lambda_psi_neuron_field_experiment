@@ -70,7 +70,7 @@ Contains the executable experiment workflow:
 2. Build the dataset × variant × learning-rate × seed grid.
 3. Run each experiment.
 4. Select checkpoints using validation performance.
-5. Restore the best checkpoint.
+5. Restore the validation-selected checkpoint.
 6. Evaluate the final test set.
 7. Store run-level metrics and learned Lambda/Psi values.
 8. Aggregate results across seeds.
@@ -346,7 +346,9 @@ During training:
 - optional gradient clipping is supported;
 - optional AMP is supported on CUDA.
 
-After training, the best validation checkpoint is restored before the validation and test metrics are recorded.
+The first epoch establishes the initial checkpoint. Thereafter, replacing the checkpoint and resetting the early-stopping patience counter require an improvement greater than `min_delta` (CLI: `--min-delta`, default: `1e-4`) relative to the saved checkpoint. For classification, validation accuracy is expressed as a fraction; for regression, the threshold applies to validation RMSE.
+
+After training, the validation-selected checkpoint is restored before the validation and test metrics are recorded.
 
 The test set is not used to select the checkpoint or the learning rate.
 
@@ -420,11 +422,13 @@ Learning-rate selection uses only validation performance:
 - maximum mean validation accuracy for classification;
 - minimum mean validation RMSE for regression.
 
+These metrics are measured using the restored validation-selected checkpoints. For the study's learning-rate grid, exact ties in the mean validation metric are resolved in favor of the smaller learning rate.
+
 A selected learning rate is written only after all requested learning rates have complete seed sets.
 
 ### `checkpoints/`
 
-Stores the best validation checkpoint for each run.
+Stores the validation-selected checkpoint for each run, using the configured `min_delta` improvement rule.
 
 ## Reading the code
 
