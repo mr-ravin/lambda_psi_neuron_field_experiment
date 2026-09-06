@@ -11,7 +11,7 @@ results/
     ├── all_runs.csv
     └── selected_lr_summary.csv
 
-The script writes table1.csv ... table8.csv in paper_tables/ by default.
+The script writes table1.csv ... table9.csv in paper_tables/ by default.
 The numbering follows the order of tables in the manuscript:
 
   table1.csv  Boundary regimes of the Lambda-Psi field
@@ -22,6 +22,7 @@ The numbering follows the order of tables in the manuscript:
   table6.csv  Hidden-only ablation for APTx Neuron + Field
   table7.csv  Learned hidden-field Lambda/Psi parameters
   table8.csv  Learned output-field Lambda/Psi parameters
+  table9.csv  Learned hidden-field Lambda/Psi parameters (hidden-only ablation)
 
 Only Python's standard library is required.
 """
@@ -82,7 +83,7 @@ VARIANT_LABELS = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate table1.csv ... table8.csv for the Lambda-Psi paper."
+        description="Generate table1.csv ... table9.csv for the Lambda-Psi paper."
     )
     parser.add_argument(
         "--primary-dir",
@@ -100,7 +101,7 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=Path("paper_tables"),
-        help="Directory in which table1.csv ... table8.csv are written.",
+        help="Directory in which table1.csv ... table9.csv are written.",
     )
     return parser.parse_args()
 
@@ -386,6 +387,7 @@ def main() -> None:
         lambda: make_table6(primary_index, hidden_index),
         lambda: make_table7(primary_index),
         lambda: make_table8(primary_index),
+        lambda: make_table7(hidden_index),  # Table 9: hidden-only parameters.
     ]
 
     descriptions = [
@@ -397,6 +399,7 @@ def main() -> None:
         "Hidden-only APTx Neuron + Field ablation",
         "Learned hidden-field Lambda/Psi values",
         "Learned output-field Lambda/Psi values",
+        "Learned hidden-field Lambda/Psi values (hidden-only ablation)",
     ]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
