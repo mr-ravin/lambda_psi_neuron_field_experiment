@@ -4,6 +4,10 @@ This repository contains the experimental code for evaluating Lambda-Psi Neuron 
 
 The code is intentionally organized into a small set of modules so that model definitions, experiment utilities, and experiment execution remain easy to inspect independently.
 
+**Paper title**: Lambda-Psi Neuron Field: A Trainable Layer for Adaptive Propagation, Context, and Distribution
+
+**Author**: [Ravin Kumar](https://mr-ravin.github.io)
+
 ## Project structure
 
 ```text
